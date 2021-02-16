@@ -1,10 +1,21 @@
 # Demonstration Oracle CDC Source Connector with Kafka Connect
 
+## Clone this repo
+```
+git clone https://github.com/saubury/kafka-connect-oracle-cdc
+cd kafka-connect-oracle-cdc
+```
+
 ## Get Oracle CDC Source Connector
-Be sure to review license at https://www.confluent.io/hub/confluentinc/kafka-connect-oracle-cdc
+Be sure to review license at https://www.confluent.io/hub/confluentinc/kafka-connect-oracle-cdc and download the zip file.
+
+Unzip to `confluentinc-kafka-connect-oracle-cdc` (and remove any trailing version numbers)
+
 ```
-confluent-hub install confluentinc/kafka-connect-oracle-cdc:latest
+unzip ~/Downloads/confluentinc-kafka-connect-oracle-cdc-1.0.3.zip
+mv confluentinc-kafka-connect-oracle-cdc-1.0.3 confluentinc-kafka-connect-oracle-cdc
 ```
+
 
 ## Get Oracle Docker
 From [Stackoverflow](https://stackoverflow.com/questions/47887403/pull-access-denied-for-container-registry-oracle-com-database-enterprise) ...
@@ -36,8 +47,36 @@ First, ensure the database looks like it's running (`docker-compose logs -f orac
 docker-compose exec oracle /scripts/go_sqlplus.sh /scripts/oracle_setup_docker
 ```
 
+## Sample Data
+This SQL script also creates an `EMP` table, and adds four employees.
+
+| I (primary key)    | Name |
+| ----------- | ----------- |
+| 1           | Bob         |
+| 2           | Jane        |
+| 3           | Mary        |
+| 4           | Alice       |
+
+
+# Create topics
+Optional, but it's a good idea to create the topics 
+```
+kafka-topics --bootstrap-server localhost:9092 --create --partitions 1 --replication-factor 1 --topic ORCLCDB.C__MYUSER.EMP
+kafka-topics --bootstrap-server localhost:9092 --create --partitions 1 --replication-factor 1 --topic SimpleOracleCDC-ORCLCDB-redo-log
+```
+
 
 ## Connector Configuration 
+
+Check the OracleCdcSourceConnector source plug-in is available
+```
+curl -s -X GET -H 'Content-Type: application/json' http://localhost:8083/connector-plugins | jq '.'
+```
+
+And look for an occurrence of `"class": "io.confluent.connect.oracle.cdc.OracleCdcSourceConnector"`
+
+
+
 Establish the `SimpleOracleCDC` connector
 ```
 curl -s -X POST -H 'Content-Type: application/json' --data @SimpleOracleCDC.json http://localhost:8083/connectors | jq
@@ -55,6 +94,14 @@ curl -s -X GET -H 'Content-Type: application/json' http://localhost:8083/connect
 kafka-avro-console-consumer --bootstrap-server localhost:9092 --topic ORCLCDB.C__MYUSER.EMP --from-beginning
 ```
 
+The (simplified) output of kafka-avro-console-consumer should look something like
+```
+{"I":"\u0001","NAME":{"string":"Bob"}}
+{"I":"\u0002","NAME":{"string":"Jane"}}
+{"I":"\u0003","NAME":{"string":"Mary"}}
+{"I":"\u0004","NAME":{"string":"Alice"}}
+```
+
 
 # Insert, update and delete some data
 
@@ -69,6 +116,29 @@ commit;
 exit
 ```
 
+## Updated Sample Data
+This adds 2 rows to `EMP` table, updates 1 row, and deletes 1 row.
+
+| I (primary key)    | Name |
+| ----------- | ----------- |
+| 1           | Bob --> Robert         |
+| 2           | Jane (deleted)        |
+| 3           | Mary        |
+| 4           | Alice       |
+| 5           | Dale        |
+| 6           | Emma        |
+
+
+The (simplified) output of kafka-avro-console-consumer should look something like
+```
+{"I":"\u0005","NAME":{"string":"Dale"},"op_type":{"string":"I"}}
+{"I":"\u0006","NAME":{"string":"Emma"},"op_type":{"string":"I"}}
+{"I":"\u0001","NAME":{"string":"Robert"},"op_type":{"string":"U"}}
+{"I":"\u0002","NAME":{"string":"Jane"},"op_type":{"string":"D"}
+```
+
+
+
 # DDL 
 Run `docker-compose exec oracle /scripts/go_sqlplus.sh` followed by this SQL
 
@@ -77,8 +147,15 @@ ALTER TABLE C##MYUSER.EMP ADD (SURNAME VARCHAR2(100));
 
 insert into C##MYUSER.emp (name, surname) values ('Mickey', 'Mouse');
 commit;
-
 ```
+
+## Updated Sample Data
+Our new row looks like this (note the new surname column)
+
+| I (primary key)    | Name | Surname |
+| ----------- | ----------- | -------- |
+| 7           | Mickey        | Mouse |
+
 
 ## Schema mutation
 Let's see what schemas we have registered now

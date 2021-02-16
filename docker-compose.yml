@@ -2,94 +2,94 @@
 version: '3'
 
 services:
-  # zookeeper:
-  #   image: "confluentinc/cp-zookeeper:${CONF_VER}"
-  #   container_name: zookeeper
-  #   ports:
-  #     - 2181:2181
-  #   environment:
-  #     TZ: ${TZ_SET}
-  #     ZOOKEEPER_CLIENT_PORT: 2181
-  #     ZOOKEEPER_TICK_TIME: 2000
+  zookeeper:
+    image: "confluentinc/cp-zookeeper:${CONF_VER}"
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+    environment:
+      TZ: ${TZ_SET}
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
 
-  # kafka:
-  #   image: "confluentinc/cp-enterprise-kafka:${CONF_VER}"
-  #   container_name: kafka
-  #   depends_on:
-  #     - zookeeper
-  #   ports:
-  #   # Exposes 9092 for external connections to the broker
-  #   # Use kafka:29092 for connections internal on the docker network
-  #   # See https://rmoff.net/2018/08/02/kafka-listeners-explained/ for details
-  #     - '9092:9092'
-  #   environment:
-  #     TZ: ${TZ_SET}
-  #     KAFKA_BROKER_ID: 1
-  #     KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-  #     KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-  #     KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  #     KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-  #     KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-  #     KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
-  #     CONFLUENT_METRICS_ENABLE: 'false'
+  kafka:
+    image: "confluentinc/cp-enterprise-kafka:${CONF_VER}"
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+    # Exposes 9092 for external connections to the broker
+    # Use kafka:29092 for connections internal on the docker network
+    # See https://rmoff.net/2018/08/02/kafka-listeners-explained/ for details
+      - '9092:9092'
+    environment:
+      TZ: ${TZ_SET}
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+      CONFLUENT_METRICS_ENABLE: 'false'
 
 
-  # schema-registry:
-  #   image: "confluentinc/cp-schema-registry:${CONF_VER}"
-  #   container_name: schema-registry
-  #   ports:
-  #     - 8081:8081  
-  #   depends_on:
-  #     - zookeeper
-  #     - kafka
-  #   volumes:
-  #     - ./scripts:/scripts    
-  #   environment:
-  #     TZ: ${TZ_SET}
-  #     SCHEMA_REGISTRY_HOST_NAME: schema-registry
-  #     SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
-  #     SCHEMA_REGISTRY_AVRO_COMPATIBILITY_LEVEL: "none"
-  #     SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "WARN"
+  schema-registry:
+    image: "confluentinc/cp-schema-registry:${CONF_VER}"
+    container_name: schema-registry
+    ports:
+      - 8081:8081  
+    depends_on:
+      - zookeeper
+      - kafka
+    volumes:
+      - ./scripts:/scripts    
+    environment:
+      TZ: ${TZ_SET}
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+      SCHEMA_REGISTRY_AVRO_COMPATIBILITY_LEVEL: "none"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "WARN"
 
-  # kafka-connect:
-  #   container_name: kafka-connect
-  #   image: confluentinc/cp-kafka-connect:${CONNECT_VER}
-  #   depends_on:
-  #     - zookeeper
-  #     - kafka
-  #     - schema-registry
-  #   ports:
-  #     - '8083:8083'
-  #   environment:
-  #     TZ: ${TZ_SET}
-  #     CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
-  #     CONNECT_REST_PORT: 8083
-  #     CONNECT_GROUP_ID: compose-connect-group
-  #     CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
-  #     CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
-  #     CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
-  #     CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
-  #     CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
-  #     CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-  #     CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
-  #     CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-  #     CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
-  #     CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
-  #     CONNECT_PLUGIN_PATH: /usr/share/java
-  #     CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
-  #     CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
-  #     CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
-  #     CONNECT_CONFLUENT_TOPIC_REPLICATION_FACTOR: 1
-  #   # volumes:
-  #   #   - ./confluentinc-kafka-connect-mqtt:/usr/share/java/confluentinc-kafka-connect-mqtt
+  kafka-connect:
+    container_name: kafka-connect
+    image: "confluentinc/cp-kafka-connect:${CONF_VER}"
+    depends_on:
+      - zookeeper
+      - kafka
+      - schema-registry
+    ports:
+      - '8083:8083'
+    environment:
+      TZ: ${TZ_SET}
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:29092"
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_PLUGIN_PATH: /usr/share/java
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_CONFLUENT_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - ./confluentinc-kafka-connect-oracle-cdc:/usr/share/java/confluentinc-kafka-connect-oracle-cdc
 
 
   oracle:
     image: 'store/oracle/database-enterprise:${ORA_VER}'
-    hostname: oracle
+    container_name: oracle
     ports:
       - "1521:1521"
     volumes:
