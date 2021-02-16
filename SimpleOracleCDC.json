@@ -1,8 +1,8 @@
 {
-    "name": "SimpleOracleCDC_1",
+    "name": "SimpleOracleCDC",
     "config":{
       "connector.class": "io.confluent.connect.oracle.cdc.OracleCdcSourceConnector",
-      "name": "SimpleOracleCDC_1",
+      "name": "SimpleOracleCDC",
       "tasks.max":1,
       "key.converter": "io.confluent.connect.avro.AvroConverter",
       "key.converter.schema.registry.url": "http://localhost:8081",
@@ -17,7 +17,6 @@
       "start.from":"snapshot",
       "table.inclusion.regex":"ORCLCDB\\.C##MYUSER\\.EMP",
       "table.exclusion.regex":"",
-      "_table.topic.name.template_":"Set to an empty string to disable generating change event records",
       "table.topic.name.template": "${fullyQualifiedTableName}",
       "connection.pool.max.size": 20,
       "confluent.topic.replication.factor":1,

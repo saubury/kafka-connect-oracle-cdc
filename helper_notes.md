@@ -15,3 +15,10 @@ kafka-configs --bootstrap-server localhost:9092 --entity-type brokers --entity-d
 ORCLCDB.C__MYUSER.EMP
 SimpleOracleCDC_1-ORCLCDB-redo-log
 
+## Setup Oracle Docker
+
+
+```
+docker-compose exec oracle bash
+sqlplus '/ as sysdba' @/scripts/oracle_setup_docker.sql
+```

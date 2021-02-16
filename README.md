@@ -26,29 +26,93 @@ docker pull store/oracle/database-enterprise:12.2.0.1
 
 
 
+
 ## Setup Oracle Docker
+Once the Oracle database is running, we need to turn on ARCHIVELOG mode, create some users, and establish permissions
+
+First, ensure the database looks like it's running (`docker-compose logs -f oracle`) and then run the following
 
 ```
 docker-compose exec oracle /scripts/go_sqlplus.sh /scripts/oracle_setup_docker
 ```
 
 
-```
-docker-compose exec oracle bash
-sqlplus '/ as sysdba' @/scripts/oracle_setup_docker.sql
-```
-
-
 ## Connector Configuration 
+Establish the `SimpleOracleCDC` connector
 ```
-curl -X DELETE localhost:8083/connectors/SimpleOracleCDC_1
-
-curl -s -X GET -H 'Content-Type: application/json' http://localhost:8083/connectors/SimpleOracleCDC_1/status | jq
-
-curl -s -X POST -H 'Content-Type: application/json' --data @config1.json http://localhost:8083/connectors | jq
+curl -s -X POST -H 'Content-Type: application/json' --data @SimpleOracleCDC.json http://localhost:8083/connectors | jq
 ```
+
+Check the status of the connector. You may need to wait a while for the status to show up
+```
+curl -s -X GET -H 'Content-Type: application/json' http://localhost:8083/connectors/SimpleOracleCDC/status | jq
+```
+
+
 
 ## Check topic
 ```
 kafka-avro-console-consumer --bootstrap-server localhost:9092 --topic ORCLCDB.C__MYUSER.EMP --from-beginning
 ```
+
+
+# Insert, update and delete some data
+
+Run `docker-compose exec oracle /scripts/go_sqlplus.sh` followed by this SQL
+
+```
+insert into C##MYUSER.emp (name) values ('Dale');
+insert into C##MYUSER.emp (name) values ('Emma');
+update C##MYUSER.emp set name = 'Robert' where name = 'Bob';
+delete C##MYUSER.emp where name = 'Jane';
+commit;
+exit
+```
+
+# DDL 
+Run `docker-compose exec oracle /scripts/go_sqlplus.sh` followed by this SQL
+
+```
+ALTER TABLE C##MYUSER.EMP ADD (SURNAME VARCHAR2(100));
+
+insert into C##MYUSER.emp (name, surname) values ('Mickey', 'Mouse');
+commit;
+
+```
+
+## Schema mutation
+Let's see what schemas we have registered now
+```console
+curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions
+
+curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions/1 | jq '.'
+
+curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions/2 | jq '.'
+
+or you can also use:
+
+curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions/2 | jq -r .schema | jq .
+```
+
+Note, schema version 2 has this addition
+
+```
+    {
+      "name": "SURNAME",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    }
+```
+
+
+## Connector Delete Configuration 
+
+If something goes wrong, you can delete the connector like this
+```
+curl -X DELETE localhost:8083/connectors/SimpleOracleCDC
+```
+
+
