@@ -35,13 +35,20 @@ docker login --username YourDockerUserName --password-stdin
 docker pull store/oracle/database-enterprise:12.2.0.1
 ```
 
+# Docker Startup
 
+- Install docker/docker-compose
+- Set your Docker maximum memory to something really big, such as 10GB. (preferences -> advanced -> memory)
+- Startup the platform (Oracle, Kafka, Kafka Connect, Schema registry)
+```
+docker-compose up -d
+```
 
 
 ## Setup Oracle Docker
 Once the Oracle database is running, we need to turn on ARCHIVELOG mode, create some users, and establish permissions
 
-First, ensure the database looks like it's running (`docker-compose logs -f oracle`) and then run the following
+First, ensure the database looks like it's running (`docker-compose logs -f oracle`) and then run the following (for the curious, the SQL script is [here](scripts/oracle_setup_docker.sql) )
 
 ```
 docker-compose exec oracle /scripts/go_sqlplus.sh /scripts/oracle_setup_docker
@@ -90,8 +97,14 @@ curl -s -X GET -H 'Content-Type: application/json' http://localhost:8083/connect
 
 
 ## Check topic
+If you have Kafka tools installed locally, you can look at the de-serialised AVRO like this
 ```
 kafka-avro-console-consumer --bootstrap-server localhost:9092 --topic ORCLCDB.C__MYUSER.EMP --from-beginning
+```
+
+Or if you don't have the Kafka tools installed, you can launch them via a container like
+```
+docker-compose exec kafka-connect kafka-avro-console-consumer --bootstrap-server kafka:29092 --property schema.registry.url="http://schema-registry:8081" --topic ORCLCDB.C__MYUSER.EMP --from-beginning
 ```
 
 The (simplified) output of kafka-avro-console-consumer should look something like
@@ -101,6 +114,28 @@ The (simplified) output of kafka-avro-console-consumer should look something lik
 {"I":"\u0003","NAME":{"string":"Mary"}}
 {"I":"\u0004","NAME":{"string":"Alice"}}
 ```
+
+# Schema
+Let's see what schemas we have registered now
+```console
+curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions/1 | jq -r .schema | jq .
+```
+
+Amongst other things, you'll see version 1 of the schema has been registered like this
+```
+  "fields": [
+    {
+      "name": "I",
+      "type": {
+        "type": "bytes"
+    },
+    {
+      "name": "NAME",
+      "type": [
+        "string"
+      ]
+    }
+  ```
 
 
 # Insert, update and delete some data
@@ -158,7 +193,8 @@ Our new row looks like this (note the new surname column)
 
 
 ## Schema mutation
-Let's see what schemas we have registered now
+Let's see what schemas we have registered now. We have data registered against version 1 and version 2 of the schema
+
 ```console
 curl -s -X GET http://localhost:8081/subjects/ORCLCDB.C__MYUSER.EMP-value/versions
 
@@ -193,3 +229,8 @@ curl -X DELETE localhost:8083/connectors/SimpleOracleCDC
 ```
 
 
+# Tear down
+To tear down the containers
+```
+docker-compose down
+```
